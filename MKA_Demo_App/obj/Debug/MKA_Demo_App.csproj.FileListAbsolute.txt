@@ -1,0 +1,10 @@
+C:\Informatyka\SEM4\WprowadzenieDoCyberbezpieczenstwa\MKA_Demo_App\MKA_Demo_App\obj\Debug\MKA_Demo_App.csproj.AssemblyReference.cache
+C:\Informatyka\SEM4\WprowadzenieDoCyberbezpieczenstwa\MKA_Demo_App\MKA_Demo_App\obj\Debug\MKA_Demo_App.Properties.Resources.resources
+C:\Informatyka\SEM4\WprowadzenieDoCyberbezpieczenstwa\MKA_Demo_App\MKA_Demo_App\obj\Debug\MKA_Demo_App.csproj.GenerateResource.cache
+C:\Informatyka\SEM4\WprowadzenieDoCyberbezpieczenstwa\MKA_Demo_App\MKA_Demo_App\obj\Debug\MKA_Demo_App.csproj.CoreCompileInputs.cache
+C:\Informatyka\SEM4\WprowadzenieDoCyberbezpieczenstwa\MKA_Demo_App\MKA_Demo_App\bin\Debug\MKA_Demo_App.exe.config
+C:\Informatyka\SEM4\WprowadzenieDoCyberbezpieczenstwa\MKA_Demo_App\MKA_Demo_App\bin\Debug\MKA_Demo_App.exe
+C:\Informatyka\SEM4\WprowadzenieDoCyberbezpieczenstwa\MKA_Demo_App\MKA_Demo_App\bin\Debug\MKA_Demo_App.pdb
+C:\Informatyka\SEM4\WprowadzenieDoCyberbezpieczenstwa\MKA_Demo_App\MKA_Demo_App\obj\Debug\MKA_Demo_App.exe
+C:\Informatyka\SEM4\WprowadzenieDoCyberbezpieczenstwa\MKA_Demo_App\MKA_Demo_App\obj\Debug\MKA_Demo_App.pdb
+C:\Informatyka\SEM4\WprowadzenieDoCyberbezpieczenstwa\MKA_Demo_App\MKA_Demo_App\obj\Debug\MKA_Demo_App.exe.config
