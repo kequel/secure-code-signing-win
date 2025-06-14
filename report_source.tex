@@ -2,14 +2,44 @@
 \usepackage{graphicx}
 \usepackage[T1]{fontenc}
 \usepackage[polish]{babel} 
+\usepackage{geometry}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{courier}
+\usepackage{url}
+\geometry{a4paper, margin=2.5cm}
+
+\lstdefinestyle{command}{
+    basicstyle=\small\ttfamily\color{black},
+    backgroundcolor=\color{gray!10},
+    frame=single,
+    rulecolor=\color{gray},
+    tabsize=4,
+    captionpos=b,
+    breaklines=true,
+    breakatwhitespace=true,
+    numbers=none,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false
+}
 
 \title{Podpisanie i weryfikacja kodu aplikacji w systemie Windows}
-\author{Martyna Borkowska, Karolina Glaza, Amila Amarasekara}
+\author{Martyna Borkowska, Karolina Glaza, Amila Amarasekara \\ \url{https://github.com/kequel}}
 \date{Maj 2025}
 
 \begin{document}
 
 \maketitle
+
+\section*{Zagadnienia}
+\textbf{1.} Demonstracja certyfikatu wystawionego przez dowolne CA z właściwymi rozszerzeniami (v3 Extensions) oraz zaufania do CA, który go wystawił na testowej maszynie. \\ \\
+\textbf{2.} Demonstracja podpisywania kodu w dowolnym IDE (przykładowo VisualStudio, Eclipse) - demonstracja weryfikacji podpisu. \\ \\
+\textbf{3.}Demonstracja podpisywania kodu ręcznie w oparciu o dowolne narzędzie.\\ \\
+\textbf{4.}Demonstracja ręcznego podpisywania kodu z użyciem publicznie dostępnej usługi znakowania czasem (podpisu odpornego na nieaktualność certyfikatu). \\
+
+
 
 \section*{Wstęp teorytyczny}
 \subsection*{Podpis cyfrowy aplikacji}
@@ -19,7 +49,7 @@ sposób zapewnienia, że:
     \item nie został zmodyfikowany po podpisaniu (integralność)
     \item może być zaufany przez system operacyjny 
 \end{itemize}
-Systemy operacyjne coraz częściej wymagają, by aplikacje były podpisane – szczególnie przy dystrybucji przez internet. Nieużycie podpisu może skutkować:
+Systemy operacyjne coraz częściej wymagają, by aplikacje były podpisane - szczególnie przy dystrybucji przez internet. Nieużycie podpisu może skutkować:
 \begin{itemize}
     \item ostrzeżeniami bezpieczeństwa ("Nieznany wydawca")
     \item blokadą instalacji przez system
@@ -28,7 +58,7 @@ Systemy operacyjne coraz częściej wymagają, by aplikacje były podpisane – 
 \subsection*{Działanie}
 1. Wydawca aplikacji generuje parę kluczy: prywatny i publiczny.\\
 2. Certyfikat X.509 (np. od CA jak DigiCert, Sectigo) zawiera klucz publiczny i dane właściciela.\\
-3. Kod jest podpisywany kluczem prywatnym –  hash + podpis.\\
+3. Kod jest podpisywany kluczem prywatnym -  hash + podpis.\\
 4. System używa klucza publicznego z certyfikatu do weryfikacji podpisu.
 
 \subsection*{Timestamp (znacznik czasu)}
@@ -40,80 +70,460 @@ Wymaga połączenia z usługą TSA (Time Stamping Authority), np.:
     \item http://timestamp.sectigo.com
 \end{itemize}
 
-\section*{Krok 1: Generowanie własnego Urzędu Certyfikacji (CA)}
 
-Na potrzeby projektu utworzono własny Urząd Certyfikacji (CA) za pomocą narzędzia OpenSSL uruchamianego w PowerShellu jako administrator 2 wyniku którego wygenerowano:
+
+\section{Generowanie własnego Urzędu Certyfikacji (CA)}
+Generowanie własnego Urzędu Certyfikacji (CA) to proces tworzenia zaufanego podmiotu, który będzie wystawiał certyfikaty dla aplikacji. \\
+\subsection{Wymagane narzędzia: }
 \begin{itemize}
-  \item \texttt{ca.key} – klucz prywatny CA (należy chronić jak hasło),
-  \item \texttt{ca.crt} – certyfikat CA do dystrybucji.
-\end{itemize}
-Użyto polecenia:
-
-\begin{verbatim}
-openssl req -x509 -newkey rsa:2048 -keyout ca.key -out ca.crt
--days 365 -addext "basicConstraints=CA:TRUE" 
-\end{verbatim}
-
-\section*{Krok 2: Dodanie CA do zaufanych certyfikatów w Windows}
-
-Aby system Windows ufał certyfikatowi aplikacji, należało dodać certyfikat CA do magazynu zaufanych głównych urzędów certyfikacji. W tym celu użyto narzędzia \texttt{certmgr.msc}, wybierając opcję „Importuj...” i wskazując plik \texttt{ca.crt}. Po zakończeniu importu, podpisy wydawane przez ten CA będą traktowane jako zaufane.
-
-\section*{Krok 3: Generowanie certyfikatu dla aplikacji}
-
-Wygenerowano parę kluczy dla aplikacji oraz żądanie certyfikatu (CSR), następnie podpisano CSR za pomocą CA. W wyniku czego powstały pliki:
-\begin{itemize}
-  \item \texttt{app.key} – klucz prywatny aplikacji,
-  \item \texttt{app.crt} – certyfikat aplikacji podpisany przez CA,
-  \item \texttt{ca.srl} – plik numerów seryjnych certyfikatów CA.
+    \item \textbf{OpenSSL} działające w terminalu – narzędzie kryptograficzne,
+    \item \textbf{PowerShell z uprawnieniami administratora} - do wykonania komend systemowych,
+    \item \textbf{Plik konfiguracyjny} (opcjonalnie) – dla zaawansowanych ustawień CA. \\
 \end{itemize}
 
-\begin{verbatim}
+\subsection{Procedura generowania CA}
+\begin{enumerate}
+    \item Uruchom PowerShell jako administrator.
+    \item Wykonaj komendę generującą klucz i certyfikat CA:
+\end{enumerate}
+
+\begin{lstlisting}[style=command, caption=Generowanie CA w PowerShell]
+openssl req -x509 -newkey rsa:2048 \
+    -keyout ca.key -out ca.crt \
+    -days 365 \
+    -addext "basicConstraints=CA:TRUE"
+\end{lstlisting}
+
+\noindent\textbf{\\Parametry:}
+\begin{itemize}
+    \item \texttt{x509} - generuje certyfikat samopodpisany (X.509),
+    \item \texttt{newkey rsa:2048} - tworzy klucz RSA 2048-bitowy,
+    \item \texttt{days 365} - okres ważności certyfikatu,
+    \item \texttt{addext} - dodaje rozszerzenia krytyczne dla CA
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{screenshots/gen_ca_1}
+    \caption{Uzupełnione dane.}
+    \label{fig:gen_ca}
+\end{figure}
+
+\subsection{Wygenerowane pliki}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{screenshots/check_ca_1}
+    \caption{Struktura plików CA po generacji}
+    \label{fig:ca_files}
+\end{figure}
+Po wykonaniu komendy powstają: \\
+\begin{itemize}
+    \item \texttt{ca.crt} - certyfikat publiczny CA:
+    \begin{itemize}
+        \item Zawiera klucz publiczny i metadane,
+        \item Może być dystrybuowany do zaufanych magazynów. \\
+    \end{itemize}
+    \item \texttt{ca.key} - klucz prywatny CA. 
+Jeżeli zaczyna się od:
+\begin{itemize}
+\item \textbf{- - - - -BEGIN ENCRYPTED PRIVATE KEY- - - -} - klucz jest zaszyfrowany
+\item \textbf{- - - - -BEGIN PRIVATE KEY- - - -} - nie ma ochrony hasłem
+\end{itemize}
+
+    \begin{figure}[H]
+             \centering
+                \includegraphics[width=0.7\textwidth]{screenshots/ca_key_1}
+            \caption{Plik ca.key.}
+        \label{fig:ca_files}
+    \end{figure}
+    
+
+\end{itemize}
+
+
+\section{Dodanie CA do zaufanych certyfikatów w Windows}
+Aby system Windows ufał certyfikatom podpisanym przez nasze CA, konieczne jest dodanie certyfikatu \texttt{ca.crt} do magazynu \textbf{Zaufane główne urzędy certyfikacji}. 
+W tym celu należy uruchomić \textbf{certmgr.msc} – narzędzie MMC do zarządzania certyfikatami użytkownika, z uprawnieniami administratora.
+
+\subsection{Procedura importu CA}
+\begin{enumerate}
+    \item Otwórz \texttt{certmgr.msc} poprzez:
+    \begin{itemize}
+        \item Menu Start $\rightarrow$ "Zarządzanie certyfikatami", lub
+        \item Uruchom $\rightarrow$ \texttt{certmgr.msc}
+    \end{itemize}
+
+    \item W drzewie nawigacyjnym wybierz:
+    \begin{lstlisting}[]
+Certyfikaty -> Biezacy uzytkownik 
+    -> Zaufane glowne urzedy certyfikacji 
+    -> Certyfikaty
+    \end{lstlisting}
+
+    \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{screenshots/cert_2}
+    \caption{Interfejs certmgr.msc.}
+    \label{fig:certmgr_ui}
+\end{figure}
+
+    \item Kliknij prawym przyciskiem i wybierz \textbf{Wszystkie zadania $\rightarrow$ Importuj...}
+\\
+    \item W kreatorze importu:
+    \begin{itemize}
+        \item Wskaż plik \texttt{ca.crt},
+        \item Wybierz magazyn \textbf{Zaufane główne urzędy certyfikacji},
+        \item Potwierdź operację. \\ \\ \\ \\ 
+    \end{itemize}
+\end{enumerate}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.85\textwidth]{screenshots/choose_2}
+    \caption{Wybór ca.crt w certmgr.msc.}
+    \label{fig:certmgr_ui}
+\end{figure}
+
+\subsection{Weryfikacja poprawności importu}
+W narzędziu sprawdź, czy certyfikat pojawił się na liście zaufanych CA:
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{screenshots/list_2}
+    \caption{Lista zaufanych certyfikatów z widocznym certyfikatem "MKA CA".}
+    \label{fig:ca_in_store}
+\end{figure}
+
+\subsection{Konsekwencje}
+\begin{itemize}
+    \item \textbf{System będzie ufał wszystkim certyfikatom} podpisanym przez ten CA,
+    \item Klucz \texttt{ca.key} musi być chroniony - jego kompromitacja oznacza utratę zaufania do całej infrastruktury,
+\end{itemize}
+\section{Generowanie certyfikatu dla aplikacji}
+
+Aby możliwe było podpisanie aplikacji, należy wygenerować parę kluczy oraz certyfikat podpisany przez wcześniej utworzony CA. Proces ten składa się z trzech głównych kroków: wygenerowania żądania certyfikatu (CSR), jego podpisania oraz konfiguracji rozszerzeń X.509. \\
+
+\subsection{Generowanie klucza i żądania CSR}
+
+W pierwszym kroku generujemy klucz prywatny aplikacji oraz żądanie certyfikatu (CSR):
+
+\begin{lstlisting}[style=command, caption=Generowanie klucza i CSR]
 openssl req -newkey rsa:2048 -keyout app.key -out app.csr -nodes
-\end{verbatim}
+\end{lstlisting}
 
-\begin{verbatim}
-openssl x509 -req -in app.csr -CA ca.crt -CAkey ca.key 
--CAcreateserial -out app.crt -days 365 -extfile v3.ext
-\end{verbatim}
+\noindent\textbf{Opis parametrów:}
+\begin{itemize}
+    \item \texttt{newkey rsa:2048} - generuje nowy klucz RSA o długości 2048 bitów,
+    \item \texttt{keyout app.key} - zapisuje klucz prywatny do pliku,
+    \item \texttt{out app.csr} - tworzy żądanie certyfikatu (CSR),
+    \item \texttt{nodes} - nie szyfruje klucza prywatnego (brak hasła).
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{screenshots/gen_cert_3}
+    \caption{Wprowadzenie danych do CSR}
+    \label{fig:cert_dn}
+\end{figure}
+
+\noindent W wyniku wykonania tej komendy powstają dwa pliki:
+\begin{itemize}
+    \item \texttt{app.key} - zawiera klucz prywatny aplikacji. Jest to klucz, którym będzie podpisywany kod. Należy chronić go przed nieautoryzowanym dostępem, ponieważ jego utrata lub wyciek może zagrozić bezpieczeństwu całego procesu podpisywania.
+    \item \texttt{app.csr} - żądanie podpisania certyfikatu (Certificate Signing Request). Zawiera dane identyfikacyjne (np. nazwa organizacji, CN, kraj) oraz klucz publiczny odpowiadający prywatnemu z \texttt{app.key}. Plik ten jest przeznaczony do przekazania urzędowi certyfikacji (CA) w celu wystawienia certyfikatu.
+\end{itemize}
 
 
-\section*{Krok 4: Podpisywanie kodu w Visual Studio}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{screenshots/check_3}
+    \caption{Wygenerowane pliki: \texttt{app.key} i \texttt{app.csr}}
+    \label{fig:key_csr_files}
+\end{figure}
 
-Do podpisywania kodu potrzebny był plik \texttt{.pfx}, łączący klucz prywatny i certyfikat. W Visual Studio, w ustawieniach projektu, wybrano plik \texttt{app.pfx} do podpisywania. Visual Studio oznacza aplikację jako podpisaną, ale Eksplorator Windows może nie pokazać podpisu, jeśli CA nie jest ogólnie zaufane.Generacja pliku:
+\subsection{Podpisanie CSR przez CA}
 
-\begin{verbatim}
+Następnie podpisujemy CSR przy użyciu wcześniej wygenerowanego urzędu CA:
+
+\begin{lstlisting}[style=command, caption=Podpisywanie CSR przez CA]
+openssl x509 -req -in app.csr \
+    -CA ca.crt -CAkey ca.key \
+    -CAcreateserial \
+    -out app.crt \
+    -days 365 \
+    -extfile v3.ext
+\end{lstlisting}
+
+\noindent\textbf{Opis parametrów:}
+\begin{itemize}
+    \item \texttt{req -in app.csr} - określa CSR do podpisania,
+    \item \texttt{CA ca.crt -CAkey ca.key} - pliki CA używane do podpisu,
+    \item \texttt{CAcreateserial} - tworzy plik z numerem seryjnym,
+    \item \texttt{out app.crt} - wynikowy certyfikat aplikacji,
+    \item \texttt{days 365} - ważność certyfikatu (w dniach),
+    \item \texttt{extfile v3.ext} - plik z rozszerzeniami certyfikatu.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{screenshots/request_3}
+    \caption{Proces podpisywania certyfikatu}
+    \label{fig:signing_process}
+\end{figure}
+
+\subsection{Plik konfiguracyjny \texttt{v3.ext}}
+
+Podczas podpisywania żądania CSR konieczne jest podanie pliku z rozszerzeniami X.509v3, które określają dodatkowe właściwości certyfikatu. Taki plik nazywa się najczęściej \texttt{v3.ext} i zawiera zestaw dyrektyw opisujących, jak systemy powinny interpretować dany certyfikat.
+
+\noindent Przykładowa zawartość pliku \texttt{v3.ext}:
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{screenshots/v3_3}
+    \caption{Zawartość pliku \texttt{v3.ext}}
+    \label{fig:v3_content}
+\end{figure}
+
+\noindent\textbf{Opis kluczowych rozszerzeń:}
+\begin{itemize}
+    \item \texttt{extendedKeyUsage = codeSigning} - informuje, że certyfikat może być używany do podpisywania kodu źródłowego lub wykonywalnego. Jest to wymagane przez narzędzia takie jak \texttt{signtool}.
+    \item \texttt{subjectKeyIdentifier = hash} - dodaje identyfikator klucza publicznego w postaci skrótu, co ułatwia zarządzanie i sprawdzanie powiązań w łańcuchu certyfikatów.
+    \item \texttt{authorityKeyIdentifier = keyid,issuer} - wskazuje na certyfikat nadrzędny (czyli CA), który wydał ten certyfikat. Umożliwia prawidłową budowę i walidację łańcucha zaufania.
+\end{itemize}
+
+\noindent Tego typu plik jest standardem w procesie tworzenia certyfikatów X.509 i zapewnia, że certyfikat zostanie prawidłowo rozpoznany przez oprogramowanie systemowe, przeglądarki, IDE i inne narzędzia korzystające z infrastruktury klucza publicznego. \\
+
+\subsection{Wynik operacji}
+
+Po wykonaniu wszystkich kroków, otrzymujemy zestaw plików gotowych do użycia w procesie podpisywania aplikacji:
+
+\begin{itemize}
+    \item \texttt{app.key} - klucz prywatny aplikacji,
+    \item \texttt{app.crt}  certyfikat podpisany przez CA,
+    \item \texttt{ca.srl} - numer seryjny podpisanego certyfikatu.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{screenshots/second_check_3}
+    \caption{Ostateczne pliki: certyfikat aplikacji i pliki CA}
+    \label{fig:final_files}
+\end{figure}
+
+{\vskip 4\baselineskip}
+
+\section{Podpisywanie kodu w Visual Studio}
+
+\subsection{Przygotowanie certyfikatu PFX}
+Plik PFX (\texttt{.pfx}) jest niezbędny do podpisywania aplikacji w środowiskach takich jak Visual Studio. Format ten łączy w jednym pliku certyfikat (\texttt{.crt}) oraz odpowiadający mu klucz prywatny (\texttt{.key}), opcjonalnie chroniąc je hasłem. Do jego utworzenia służy polecenie:
+
+\begin{lstlisting}[style=command, caption=Generowanie PFX]
 openssl pkcs12 -export -out app.pfx -inkey app.key -in app.crt
-\end{verbatim}
+\end{lstlisting}
 
-\section*{Krok 5: Ręczne podpisywanie kodu z timestampem}
+\noindent\textbf{Opis parametrów:}
+\begin{itemize}
+    \item \texttt{export} - tryb eksportu: tworzy nowy plik PFX,
+    \item \texttt{out app.pfx} - nazwa wynikowego pliku PFX,
+    \item \texttt{inkey app.key} - wskazuje klucz prywatny aplikacji,
+    \item \texttt{in app.crt} - wskazuje certyfikat, który zostanie dołączony.
+\end{itemize}
 
-W celu poprawnego podpisania aplikacji ręcznie użyto narzędzia \texttt{signtool.exe}, które umożliwia dołączenie znacznika czasu (timestamp). Dzięki dodaniu znacznika czasu podpis pozostanie ważny nawet po wygaśnięciu certyfikatu.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{screenshots/pfx_check_4}
+    \caption{Generowanie pliku PFX w PowerShell oraz wygenerowany plik.}
+    \label{fig:pfx_export}
+\end{figure}
 
-\begin{verbatim}
-signtool sign /f "C:\WINDOWS\System32\app.pfx" /p silnehaslo
-/fd SHA256 /tr http://timestamp.digicert.com /td SHA256
+\subsection{Próba podpisania w Visual Studio}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{screenshots/first_visual_4}
+    \caption{Konfiguracja podpisywania w zakładce właściwości.}
+    \label{fig:vs_signing}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{screenshots/second_visual_4}
+    \caption{Po podpisaniu plikem app.pfx.}
+    \label{fig:vs_signing}
+\end{figure}
+
+Mimo, że wesług Visual Studio podpisany, w właściwościach aplikacji w bin/debug podpis nie będzie widoczny. 
+Eksplorator plików pokazuje podpisy tylko od zaufanych urzędów certyfikacji (np. DigiCert). 
+Certyfikat self-signed może być uznany za "nieznany", należy więc przeprowadzić ręczne podpisywanie. \\ \\ 
+
+\section{Ręczne podpisywanie kodu z timestampem}
+
+\subsection{Proces podpisywania signtool}
+
+Do ręcznego podpisywania aplikacji w systemie Windows wykorzystujemy narzędzie \texttt{signtool.exe}, które jest częścią zestawu Windows SDK. Poniższa komenda podpisuje plik wykonywalny przy użyciu wcześniej wygenerowanego certyfikatu w formacie PFX oraz dodaje znacznik czasu z serwera TSA.
+
+\begin{lstlisting}[style=command, caption=Podpisywanie signtool]
+signtool sign /f "C:\WINDOWS\System32\app.pfx" /p silnehaslo 
+/fd SHA256 /tr http://timestamp.digicert.com /td SHA256 
 "MKA_Demo_App.exe"
-\end{verbatim}
+\end{lstlisting}
 
-\section*{Krok 6: Weryfikacja podpisu}
+\noindent\textbf{Opis parametrów:}
+\begin{itemize}
+    \item \texttt{sign} - polecenie podpisania pliku,
+    \item \texttt{/f} - ścieżka do pliku PFX zawierającego certyfikat i klucz prywatny,
+    \item \texttt{/p} - hasło do pliku PFX,
+    \item \texttt{/fd SHA256} – algorytm skrótu (hashowania) używany do tworzenia podpisu,
+    \item \texttt{/tr http://timestamp.digicert.com} - adres serwera TSA (Time Stamping Authority), który dostarcza znacznik czasu,
+    \item \texttt{/td SHA256} - algorytm skrótu używany przy żądaniu znacznika czasu,
+    \item \texttt{MKA\_Demo\_App.exe} - podpisywany plik wykonywalny.
+\end{itemize}
 
+\noindent Zastosowanie znacznika czasu (\texttt{/tr}) jest kluczowe - dzięki niemu podpis zachowuje ważność nawet po wygaśnięciu certyfikatu. Algorytm SHA256 zapewnia nowoczesny poziom bezpieczeństwa i jest zgodny z aktualnymi wymaganiami Microsoftu.
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{screenshots/signtool_4}
+    \caption{Ręczne podpisywanie aplikacji.}
+    \label{fig:manual_signing}
+\end{figure}
+
+\subsection{Weryfikacja podpisu}
 Sprawdzono poprawność podpisu poprzez właściwości pliku w Eksploratorze Windows (zakładka „Podpisy cyfrowe”) oraz za pomocą:
 
-\begin{verbatim}
+\begin{lstlisting}[style=command, caption=Weryfikacja podpisu]
 signtool verify /v /pa "MKA_Demo_App.exe"
-\end{verbatim}
+\end{lstlisting}
 
-\section*{Podsumowanie}
- W ramach projektu zrealizowano proces pełnego podpisywania kodu aplikacji w systemie Windows. Wykonane kroki:
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{screenshots/signtool_check_4}
+    \caption{Weryfikacja podpisu w PowerShell.}
+    \label{fig:signature_check}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.35\textwidth]{screenshots/propreties_after_signtool_4}
+    \caption{Weryfikacja podpisu cyfrowego w oknie właściwości pliku.}
+    \label{fig:digital_signature}
+\end{figure}
+
+\subsection{Techniczne aspekty timestampingu}
 \begin{itemize}
-    \item Certyfikaty:\\
-Wygenerowano własny Urząd Certyfikacji (CA) oraz certyfikat aplikacji z rozszerzeniami v3 i dodano CA do zaufanych  w systemie Windows, aby umożliwić weryfikację podpisów.
-    \item Podpisywanie kodu:\\
-Skonfigurowano podpisywanie projektu w IDE (Visual Studio) z użyciem certyfikatu .pfx i przeprowadzono ręczne podpisywanie aplikacji przy pomocy signtool.exe.
-    \item Timestamp:\\
-Zastosowano usługę znakowania czasem (TSA) w celu zapewnienia ważności podpisu mimo ewentualnego wygaśnięcia certyfikatu.
-    \item Weryfikacja:\\
-Sprawdzono ważność i autentyczność podpisu z poziomu eksploratora Windows oraz narzędzia signtool verify.
+    \item Serwer TSA: \texttt{http://timestamp.digicert.com}
+    \item Algorytm hashowania: SHA256
+    \item Weryfikacja łańcucha certyfikatów TSA \\
 \end{itemize}
+
+\section{Skrypt automatyzujący proces}
+W ramach projektu zdecydowaliśmy się napisać także krótki skrypt automatyzujący cały powyższy proces podpisywania kodu, realizując wszystkie kluczowe kroki opisane w projekcie:
+
+\begin{itemize}
+    \item Generację własnego Urzędu Certyfikacji (CA)
+    \item Dodawanie CA do zaufanych certyfikatów w Windows
+    \item Tworzenie certyfikatu dla aplikacji
+    \item Generację pliku PFX
+    \item Podpisywanie plików wykonywalnych z timestampem
+    \item Weryfikację poprawności podpisu \\
+\end{itemize}
+
+\subsection{Parametry skryptu (wymagają uzupełnienia odpowiednimi danymi):}
+
+\begin{lstlisting}[]
+$caName = "MKA2 CA"                # Nazwa urzedu certyfikacji
+$appName = "MKA_App2"              # Nazwa aplikacji
+$password = "silnehaslo"           # Haslo do certyfikatow
+$exePath = "sciezka/do/aplikacji"  # Sciezka do pliku .exe
+$daysValid = 365                   # Waznosc certyfikatow
+$timestampServer = "http://timestamp.digicert.com"
+\end{lstlisting}
+
+\subsection{Uruchomienie skryptu}
+\begin{lstlisting}[style=command, caption=Uruchomienie skryptu]
+.\skrypt.ps1 
+\end{lstlisting}
+Wymagania:
+\begin{itemize}
+    \item system Windows
+    \item OpenSSL w systemowym PATH
+    \item Windows SDK (dla signtool.exe) \\ \\
+\end{itemize}
+
+\subsection{Działanie skryptu}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{screenshots/skrypt_1} % (przykładowy zrzut wykonania skryptu)
+    \caption{Wywołanie skryptu}
+    \label{fig:skrypt_exec}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{screenshots/skrypt_2} % (przykładowy zrzut wykonania skryptu)
+    \caption{Wywołanie skryptu}
+    \label{fig:skrypt_exec}
+\end{figure}
+
+\subsection{Bezpieczeństwo}
+Skrypt implementuje dobre praktyki bezpieczeństwa:
+\begin{itemize}
+    \item Wymagane uruchomienie jako administrator
+    \item Weryfikacja obecności wymaganych narzędzi (OpenSSL, signtool)
+    \item Zabezpieczenie kluczy hasłami
+    \item Walidacja każdego etapu procesu
+\end{itemize}
+
+\subsection{Korzyści z automatyzacji}
+\begin{itemize}
+    \item Znaczne skrócenie czasu procesu
+    \item Eliminacja błędów manualnych \\
+\end{itemize}
+
+
+
+
+\section{Podsumowanie projektu}
+
+\noindent Projekt kompleksowo zrealizował proces podpisywania kodu w środowisku Windows, obejmujący:
+
+\subsection*{Osiągnięcia}
+\begin{itemize}
+    \item \textbf{Infrastruktura certyfikacji}
+    \begin{itemize}
+        \item Utworzenie własnego Urzędu Certyfikacji (CA) z rozszerzeniami X.509v3
+        \item Prawidłowa integracja z magazynem zaufanych certyfikatów Windows
+        \item Generacja certyfikatów aplikacji z wymaganymi rozszerzeniami do podpisywania kodu
+    \end{itemize}
+
+    \item \textbf{Proces podpisywania}
+    \begin{itemize}
+        \item Konwersja certyfikatów do formatu PFX gotowego do użycia w IDE
+        \item Implementacja podpisu cyfrowego w Visual Studio
+        \item Ręczna procedura podpisywania z wykorzystaniem \texttt{signtool.exe}
+    \end{itemize}
+
+    \item \textbf{Zabezpieczenia czasowe}
+    \begin{itemize}
+        \item Integracja z publicznym serwerem TSA (DigiCert)
+        \item Wdrożenie mechanizmu timestampingu SHA256
+        \item Weryfikacja długoterminowej ważności podpisów
+    \end{itemize}
+
+    \item \textbf{Automatyzacja procesu}
+    \begin{itemize}
+        \item Opracowanie skryptu PowerShell automatyzującego wszystkie etapy
+        \item Skrócenie czasu wykonania
+    \end{itemize}
+\end{itemize}
+
+\subsection*{Potwierdzone efekty}
+\begin{itemize}
+    \item Poprawna weryfikacja podpisu w systemie Windows
+    \item Brak ostrzeżeń o "nieznanym wydawcy"
+    \item Powtarzalność wyników dzięki zautomatyzowanemu procesowi
+\end{itemize}
+
+\subsection*{Wnioski}
+Projekt udowodnił możliwość budowy kompletnego rozwiązania do podpisywania kodu - od generacji infrastruktury kluczy, przez podpisywanie aplikacji, po weryfikację i automatyzację procesu.
 
 \end{document}
